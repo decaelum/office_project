@@ -2,9 +2,11 @@ import tkinter as tk
 import pandas as pd
 import json
 import os
-from users import is_admin_kullanici
-from tkinter import filedialog, messagebox, ttk, simpledialog
+from users import is_admin_kullanici, tum_kullanicilari_getir, kullanici_sil
+from tkinter import filedialog, messagebox, ttk, simpledialog, scrolledtext
 from threads import baslat_tekli, baslat_toplu
+from utils import logu_coz
+
 
 class MainAppFrame(tk.Frame):
     def __init__(self, master):
@@ -34,6 +36,7 @@ class MainAppFrame(tk.Frame):
              # Admin'e özel butonlar
             tk.Button(self, text="📁 Logları Göster", command=self.loglari_goster).pack(pady=5)
             tk.Button(self, text="👤 Yeni Kullanıcı Ekle", command=self.kullanici_ekle_popup).pack(pady=5)
+            tk.Button(self, text="👥 Kullanıcıları Yönet", command=self.kullanicilari_yonet).pack(pady=5)
 
         tk.Button(self, text="Log Klasörü Seç", command=self.log_klasoru_sec).pack(pady=5)
         tk.Button(self, text="Tek Dosya Seç ve Başlat", command=self.tekli_islem).pack(pady=5)
@@ -120,20 +123,70 @@ class MainAppFrame(tk.Frame):
         admin_check = tk.Checkbutton(pencere, text="Evet", variable=admin_var)
         admin_check.pack()
 
-    def kaydet():
-        username = username_entry.get()
-        password = password_entry.get()
-        is_admin = admin_var.get()
+        def kaydet():
+            username = username_entry.get()
+            password = password_entry.get()
+            is_admin = admin_var.get()
 
-        if not username or not password:
-            messagebox.showwarning("Uyarı", "Tüm alanları doldurun.")
-            return
-
-        basarili = kullanici_ekle(username, password, is_admin)
-        if basarili:
-            messagebox.showinfo("Başarılı", "Kullanıcı eklendi.")
-            pencere.destroy()
-        else:
-            messagebox.showerror("Hata", "Bu kullanıcı zaten kayıtlı.")
+            if not username or not password:
+                messagebox.showwarning("Uyarı", "Tüm alanları doldurun.")
+                return
+            
+            from users import  kullanici_ekle
+            basarili = kullanici_ekle(username, password, is_admin)
+            
+            if basarili:
+                    messagebox.showinfo("Başarılı", "Kullanıcı eklendi.")
+                    pencere.destroy()
+            else:
+                messagebox.showerror("Hata", "Bu kullanıcı zaten kayıtlı.")
 
         tk.Button(pencere, text="Kaydet", command=kaydet).pack(pady=10)
+
+  
+
+    def loglari_goster(self):
+        log_dosya = filedialog.askopenfilename(
+            title="Şifreli Log Dosyasını Seç",
+            filetypes=[("Şifreli Loglar", "*.enc")]
+        )
+        if not log_dosya:
+            return
+
+        icerik = logu_coz(log_dosya_adi=log_dosya)
+
+        pencere = tk.Toplevel(self)
+        pencere.title("Log Görüntüleyici")
+        pencere.geometry("600x400")
+
+        metin_alani = scrolledtext.ScrolledText(pencere, wrap=tk.WORD)
+        metin_alani.insert(tk.END, icerik)
+        metin_alani.pack(fill=tk.BOTH, expand=True)
+        metin_alani.config(state=tk.DISABLED)
+
+    def kullanicilari_yonet(self):
+        pencere = tk.Toplevel(self)
+        pencere.title("Kullanıcı Yönetimi")
+        pencere.geometry("300x300")
+
+        tk.Label(pencere, text="Kayıtlı Kullanıcılar").pack()
+
+        liste = tk.Listbox(pencere)
+        liste.pack(fill=tk.BOTH, expand=True)
+
+        for kullanici in tum_kullanicilari_getir():
+            liste.insert(tk.END, kullanici)
+
+        def sil():
+            secim = liste.curselection()
+            if not secim:
+                messagebox.showwarning("Uyarı", "Lütfen silinecek bir kullanıcı seçin.")
+                return
+            secilen = liste.get(secim)
+            if kullanici_sil(secilen):
+                messagebox.showinfo("Başarılı", f"{secilen} silindi.")
+                liste.delete(secim)
+            else:
+                messagebox.showerror("Hata", "Admin silinemez veya kullanıcı bulunamadı.")
+
+        tk.Button(pencere, text="🗑️ Seçili Kullanıcıyı Sil", command=sil).pack(pady=10)

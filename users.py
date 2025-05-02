@@ -18,8 +18,8 @@ def db_olustur():
             )
         """)
 
-        cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)",
-                       ("admin", hashle("admin123")))
+        cursor.execute("INSERT INTO users (username, password,is_admin) VALUES (?, ?, ?)",
+                       ("admin", hashle("admin123"), 1))
         conn.commit()
         conn.close()
         print("✅ Kullanıcı veritabanı ve admin hesabı oluşturuldu.")
@@ -63,3 +63,22 @@ def is_admin_kullanici(username):
     result = cursor.fetchone()
     conn.close()
     return result is not None and result[0] == 1
+
+def kullanici_sil(username):
+    if username == "admin":
+        return False  # Admin'i silmeyi engelle
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM users WHERE username = ?", (username,))
+    conn.commit()
+    silindi = cursor.rowcount > 0
+    conn.close()
+    return silindi
+
+def tum_kullanicilari_getir():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT username FROM users")
+    kullanicilar = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return kullanicilar

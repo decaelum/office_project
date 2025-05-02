@@ -5,7 +5,7 @@ import os
 import time
 from datetime import datetime
 from tkinter import filedialog, messagebox
-from utils import extract_p_segment
+from utils import extract_p_segment, anahtar_olustur, logu_sifrele, extract_p_segment
 
 def kontrol_ve_kaydet(dosya_yolu=None, log_path=None, progress_callback=None, df=None, islem_adi=None):
     hatali_baglantilar = []
@@ -16,13 +16,8 @@ def kontrol_ve_kaydet(dosya_yolu=None, log_path=None, progress_callback=None, df
     log_adi = f"{tarih_saat}-{islem_adi}.log"
     log_file = os.path.join(log_path, log_adi)
 
-    logging.basicConfig(
-        filename=log_file,
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        encoding="utf-8",
-        force=True
-    )
+    anahtar_olustur()  # İlk kez çağrıldığında anahtar oluşturur
+    loglar = []         # 🔸 logları biriktireceğimiz liste
 
     if df is None:
         if not dosya_yolu:
@@ -73,7 +68,7 @@ def kontrol_ve_kaydet(dosya_yolu=None, log_path=None, progress_callback=None, df
             )
             if hatali_path:
                 hatali_df.to.to_excel(hatali_path, index=False)
-                logging.info(f"🔴 {len(hatali_baglantilar)} hatalı bağlantı kaydedildi: {hatali_path}")
+                loglar.append(f"✅ URL değişmedi - {barkod}")
                 print(f"🔴 {len(hatali_baglantilar)} hatalı bağlantı bulundu.")
 
         eski_p = extract_p_segment(orijinal_url)
@@ -81,9 +76,9 @@ def kontrol_ve_kaydet(dosya_yolu=None, log_path=None, progress_callback=None, df
 
         if eski_p != yeni_p:
             degisenler.append({"Barcode": barkod, "Yeni URL": yeni_url})
-            logging.info(f"🔁 URL değişti: {barkod} | {eski_p} → {yeni_p}")
+            loglar.append(f"🔁 Değişti - {barkod}: {eski_p} → {yeni_p}")
         else:
-            logging.info(f"✅ Değişiklik yok: {barkod}")
+            loglar.append(f"⚠️ Bağlantı hatası - {barkod}: {e}")
 
         if progress_callback:
             progress_callback(i + 1, len(df))
@@ -106,3 +101,7 @@ def kontrol_ve_kaydet(dosya_yolu=None, log_path=None, progress_callback=None, df
         logging.info("🔍 Hiçbir URL değişmedi.")
         os.system('say "İşlem tamamlandı. Değişiklik yok."')
         messagebox.showinfo("Tamamlandı", f"🔍 Değişiklik bulunamadı.\nSüre: {sure:.2f} sn")
+
+    log_adi = f"{isim}_log.enc"
+    log_metin = "\n".join(loglar)
+    logu_sifrele(log_metin, log_dosya_adi=os.path.join(log_path, log_adi))
