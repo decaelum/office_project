@@ -1,19 +1,18 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, simpledialog, ttk
-import pandas as pd
-import os
-import json
+from tkinter import filedialog, messagebox, ttk, simpledialog
 from threads import baslat_tekli, baslat_toplu
+import pandas as pd
+import json
+import os
 
-class URLKontrolArayuz:
-    def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("URL Kontrol Arayüzü")
-        self.root.geometry("450x300")
-        self.root.protocol("WM_DELETE_WINDOW", self.pencereyi_kapat)
-
+class MainAppFrame(tk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.master = master
         self.log_path = None
+        self.birlesik_df = None
 
+        # log klasörü ayarını oku
         if os.path.exists("config.json"):
             try:
                 with open("config.json", "r") as f:
@@ -24,22 +23,15 @@ class URLKontrolArayuz:
             except Exception as e:
                 print(f"⚠️ config.json okunamadı: {e}")
 
-        self.label = tk.Label(self.root, text="Excel dosyasını seçin:", font=("Arial", 12))
-        self.label.pack(pady=10)
+        # Arayüz bileşenleri
+        tk.Label(self, text="URL Kontrol Paneli", font=("Arial", 14)).pack(pady=10)
 
-        self.log_button = tk.Button(self.root, text="Log Klasörü Seç", command=self.log_klasoru_sec)
-        self.log_button.pack(pady=5)
+        tk.Button(self, text="Log Klasörü Seç", command=self.log_klasoru_sec).pack(pady=5)
+        tk.Button(self, text="Tek Dosya Seç ve Başlat", command=self.tekli_islem).pack(pady=5)
+        tk.Button(self, text="Çoklu Dosya Seç ve Başlat", command=self.toplu_islem).pack(pady=5)
 
-        self.single_button = tk.Button(self.root, text="Tek Dosya Seç ve Başlat", command=self.dosya_sec_ve_kontrol_et)
-        self.single_button.pack(pady=5)
-
-        self.multi_button = tk.Button(self.root, text="Toplu Dosya Seç ve Başlat", command=self.toplu_dosya_sec_ve_birlestir)
-        self.multi_button.pack(pady=5)
-
-        self.progress = ttk.Progressbar(self.root, orient=tk.HORIZONTAL, length=300, mode="determinate")
+        self.progress = ttk.Progressbar(self, orient=tk.HORIZONTAL, length=300, mode="determinate")
         self.progress.pack(pady=20)
-
-        self.root.mainloop()
 
     def log_klasoru_sec(self):
         klasor = filedialog.askdirectory(title="Log klasörünü seçin")
@@ -48,12 +40,12 @@ class URLKontrolArayuz:
             with open("config.json", "w") as f:
                 json.dump({"log_path": klasor}, f)
 
-    def dosya_sec_ve_kontrol_et(self):
+    def tekli_islem(self):
         if not self.log_path:
-            messagebox.showwarning("Uyarı", "Önce log klasörü seçin.")
+            messagebox.showwarning("Uyarı", "Lütfen önce log klasörünü seçin.")
             return
 
-        dosya_yolu = filedialog.askopenfilename(title="Excel dosyası seç", filetypes=[("Excel", "*.xlsx")])
+        dosya_yolu = filedialog.askopenfilename(title="Excel dosyasını seçin", filetypes=[("Excel", "*.xlsx")])
         if not dosya_yolu:
             return
 
@@ -63,12 +55,12 @@ class URLKontrolArayuz:
 
         baslat_tekli(dosya_yolu, self.log_path, self.guncelle_progress, islem_adi)
 
-    def toplu_dosya_sec_ve_birlestir(self):
+    def toplu_islem(self):
         if not self.log_path:
-            messagebox.showwarning("Uyarı", "Önce log klasörü seçin.")
+            messagebox.showwarning("Uyarı", "Lütfen önce log klasörünü seçin.")
             return
 
-        adet = simpledialog.askinteger("Excel Sayısı", "Kaç Excel dosyası birleştirilecek?")
+        adet = simpledialog.askinteger("Dosya Sayısı", "Kaç Excel dosyası birleştirilecek?")
         if not adet:
             return
 
@@ -94,11 +86,4 @@ class URLKontrolArayuz:
     def guncelle_progress(self, mevcut, toplam):
         self.progress["maximum"] = toplam
         self.progress["value"] = mevcut
-        self.root.update_idletasks()
-
-    def pencereyi_kapat(self):
-        self.root.destroy()
-        exit(0)
-
-if __name__ == "__main__":
-    URLKontrolArayuz()
+        self.update_idletasks()

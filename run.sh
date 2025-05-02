@@ -22,5 +22,5 @@ else
 fi
 
 # GUI uygulamasını çalıştır
-echo "📁 GUI başlatılıyor..."
-python gui.py
+echo "📁 Uygulama başlatılıyor..."
+python main.py
