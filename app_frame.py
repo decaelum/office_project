@@ -1,9 +1,10 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox, ttk, simpledialog
-from threads import baslat_tekli, baslat_toplu
 import pandas as pd
 import json
 import os
+from users import is_admin_kullanici
+from tkinter import filedialog, messagebox, ttk, simpledialog
+from threads import baslat_tekli, baslat_toplu
 
 class MainAppFrame(tk.Frame):
     def __init__(self, master):
@@ -25,6 +26,14 @@ class MainAppFrame(tk.Frame):
 
         # Arayüz bileşenleri
         tk.Label(self, text="URL Kontrol Paneli", font=("Arial", 14)).pack(pady=10)
+
+        self.kullanici_adi = self.master.current_user  # Şu anki oturum açan kullanıcı
+        admin_mi = is_admin_kullanici(self.kullanici_adi)
+
+        if admin_mi:
+             # Admin'e özel butonlar
+            tk.Button(self, text="📁 Logları Göster", command=self.loglari_goster).pack(pady=5)
+            tk.Button(self, text="👤 Yeni Kullanıcı Ekle", command=self.kullanici_ekle_popup).pack(pady=5)
 
         tk.Button(self, text="Log Klasörü Seç", command=self.log_klasoru_sec).pack(pady=5)
         tk.Button(self, text="Tek Dosya Seç ve Başlat", command=self.tekli_islem).pack(pady=5)
@@ -87,3 +96,44 @@ class MainAppFrame(tk.Frame):
         self.progress["maximum"] = toplam
         self.progress["value"] = mevcut
         self.update_idletasks()
+    
+    def loglari_goster(self):
+        klasor = filedialog.askdirectory(title="Log klasörünü seçin")
+        if klasor:
+            os.system(f'open "{klasor}"')  # Mac için, Windows'ta "start" kullanılır
+
+    def kullanici_ekle_popup(self):
+        pencere = tk.Toplevel(self)
+        pencere.title("Yeni Kullanıcı Ekle")
+        pencere.geometry("300x200")
+
+        tk.Label(pencere, text="Kullanıcı Adı").pack()
+        username_entry = tk.Entry(pencere)
+        username_entry.pack()
+
+        tk.Label(pencere, text="Şifre").pack()
+        password_entry = tk.Entry(pencere, show="*")
+        password_entry.pack()
+
+        tk.Label(pencere, text="Admin yap?").pack()
+        admin_var = tk.IntVar()
+        admin_check = tk.Checkbutton(pencere, text="Evet", variable=admin_var)
+        admin_check.pack()
+
+    def kaydet():
+        username = username_entry.get()
+        password = password_entry.get()
+        is_admin = admin_var.get()
+
+        if not username or not password:
+            messagebox.showwarning("Uyarı", "Tüm alanları doldurun.")
+            return
+
+        basarili = kullanici_ekle(username, password, is_admin)
+        if basarili:
+            messagebox.showinfo("Başarılı", "Kullanıcı eklendi.")
+            pencere.destroy()
+        else:
+            messagebox.showerror("Hata", "Bu kullanıcı zaten kayıtlı.")
+
+        tk.Button(pencere, text="Kaydet", command=kaydet).pack(pady=10)

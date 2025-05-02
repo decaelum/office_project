@@ -43,12 +43,23 @@ def dogrula(username, password):
     conn.close()
     return result is not None
 
-def _kullanici_ekle(username, password):
+def kullanici_ekle(username, password, is_admin=False):
     if kullanici_var_mi(username):
         return False
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO users (username, password) VALUES (?, ?)", (username, hashle(password)))
+    cursor.execute(
+        "INSERT INTO users (username, password, is_admin) VALUES (?, ?, ?)",
+        (username, hashle(password), int(is_admin))
+    )
     conn.commit()
     conn.close()
     return True
+
+def is_admin_kullanici(username):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT is_admin FROM users WHERE username = ?", (username,))
+    result = cursor.fetchone()
+    conn.close()
+    return result is not None and result[0] == 1
