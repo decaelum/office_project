@@ -1,6 +1,8 @@
 import re
 import os 
 from cryptography.fernet import Fernet
+from urllib.parse import urlparse
+
 
 
 
@@ -10,12 +12,16 @@ def anahtar_olustur(kayit_yolu="log_key.key"):
         with open(kayit_yolu, "wb") as f:
             f.write(key)
 
-def extract_p_segment(url):
+def extract_netloc_and_path_from_trendyol(url):
     """
-    URL'den -p- ile başlayan numarayı çeker. Örn: /product-p-12345
+    Verilen Trendyol URL'sinden sadece domain sonrası path'i (örnek: /product/abc-def-p-12345) döner.
+    'https://www.trendyol.com' kısmı çıkarılır, kalan yol karşılaştırılır.
     """
-    match = re.search(r'-p-\d+', str(url))
-    return match.group() if match else None
+    parsed = urlparse(url)
+    if "trendyol.com" in parsed.netloc:
+        return parsed.path
+    else:
+        return None
 
 def logu_sifrele(veri: str, key_path="log_key.key", log_dosya_adi="log.enc"):
     with open(key_path, "rb") as f:
