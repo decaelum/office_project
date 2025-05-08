@@ -1,8 +1,10 @@
 import tkinter as tk
 from frames.login_frame import LoginFrame
 from frames.app_frame import MainAppFrame
+from services.users import ensure_role_column_exists
 
 class Uygulama(tk.Tk):
+    ensure_role_column_exists()
     def __init__(self):
         super().__init__()
         self.title("Ofis Uygulaması")

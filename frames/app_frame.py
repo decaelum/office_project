@@ -29,6 +29,7 @@ class MainAppFrame(tk.Frame):
         tk.Button(self.menu_frame, text="📂 Çoklu Excel Seç", command=self.toplu_dosya_sec).pack(pady=5)
         tk.Button(self.menu_frame, text="🛠 Log Klasörü Belirle", command=self.log_klasoru_belirle).pack(pady=5)
         tk.Button(self.menu_frame, text="📄 Logları Görüntüle", command=self.loglari_goruntule).pack(pady=5)
+        tk.Button(self.menu_frame, text="👥 Kullanıcıları Gör", command=self.kullanicilari_gor).pack(pady=5)
         tk.Button(self.menu_frame, text="➕ Kullanıcı Ekle", command=self.kullanici_ekle).pack(pady=5)
         tk.Button(self.menu_frame, text="🚪 Çıkış Yap", command=self.exit_app).pack(pady=10)
 
@@ -98,3 +99,10 @@ class MainAppFrame(tk.Frame):
             self.pack_forget()
             # 🔸 Giriş ekranına dön, on_login_success olarak yeniden MainAppFrame'i yükleyecek şekilde geç
             self.on_exit(lambda parent: LoginFrame(parent, lambda kullanici_adi: self.on_exit(lambda p: MainAppFrame(p, kullanici_adi, self.on_exit))))
+    
+    def kullanicilari_gor(self):
+        if self.active_frame:
+            self.active_frame.pack_forget()
+        from frames.admin_user_list_frame import UserListFrame
+        self.active_frame = UserListFrame(self.container)
+        self.active_frame.pack(fill="both", expand=True)
