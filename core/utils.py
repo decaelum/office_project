@@ -45,3 +45,17 @@ def logu_coz(key_path="log_key.key", log_dosya_adi="log.enc") -> str:
     except Exception as e:
         return f"⚠️ Deşifre edilemedi: {e}"
     
+def logu_txt_olarak_kaydet(encrypted_log_file: str, save_path: str):
+    """
+    Şifreli log dosyasını çözerek .txt olarak belirtilen yere kaydeder.
+    """
+    key = anahtar_yukle()
+    fernet = Fernet(key)
+
+    with open(encrypted_log_file, "rb") as f:
+        encrypted_data = f.read()
+
+    decrypted = fernet.decrypt(encrypted_data)
+
+    with open(save_path, "w", encoding="utf-8") as f:
+        f.write(decrypted.decode("utf-8"))

@@ -1,18 +1,16 @@
 import tkinter as tk
-from login_frame import LoginFrame
-from app_frame import MainAppFrame
+from frames.login_frame import LoginFrame
+from frames.app_frame import MainAppFrame
 
 class Uygulama(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("URL Kontrol Uygulaması")
-        self.geometry("500x350")
-        self.resizable(False, False)
-
-        self.current_user = None
+        self.geometry("800x600")
         self.current_frame = None
 
-        self.ekrani_degistir(LoginFrame)
+        # ✅ Login ekranı başlatılırken gerekli argümanları geçiyoruz
+        self.ekrani_degistir(lambda parent: LoginFrame(parent, self.giris_basarili))
 
     def ekrani_degistir(self, frame_sinifi):
         if self.current_frame:
@@ -21,9 +19,10 @@ class Uygulama(tk.Tk):
         self.current_frame.pack(fill="both", expand=True)
 
     def giris_basarili(self, kullanici_adi):
-        self.current_user = kullanici_adi
-        self.ekrani_degistir(MainAppFrame)
+        print(f"🎉 Giriş başarılı: {kullanici_adi}")
+        self.ekrani_degistir(lambda parent: MainAppFrame(parent, kullanici_adi))
 
 if __name__ == "__main__":
+    print("📁 Uygulama başlatılıyor...")
     app = Uygulama()
     app.mainloop()
