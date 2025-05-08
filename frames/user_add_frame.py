@@ -25,7 +25,9 @@ class UserAddFrame(tk.Frame):
             return
 
         try:
-            kullanici_ekle(username, password)
-            messagebox.showinfo("Başarılı", "Kullanıcı eklendi.")
+            if kullanici_ekle(username, password):
+                messagebox.showinfo("Başarılı", "✅ Kullanıcı başarıyla eklendi.")
+            else:
+                messagebox.showerror("Hata", "❌ Bu kullanıcı zaten mevcut.")
         except Exception as e:
             messagebox.showerror("Hata", f"Kullanıcı eklenemedi:\n{e}")

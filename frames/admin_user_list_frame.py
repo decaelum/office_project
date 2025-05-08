@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox, simpledialog
-from services.users import get_all_users, kullanici_sil, dogrula  
+from services.users import get_all_users, kullanici_sil as sil_fonksiyonu, dogrula  
 
 class UserListFrame(tk.Frame):
     def __init__(self, master):
@@ -18,7 +18,7 @@ class UserListFrame(tk.Frame):
 
             tk.Label(frame, text=f"Kullanıcı: {username} | Yetki: {role}", anchor="w").pack(side="left", fill="x", expand=True)
 
-            if username != "admin":  # Admin silinemez
+            if username != "admin":
                 tk.Button(frame, text="Sil", command=lambda u=username: self.kullanici_sil(u)).pack(side="right", padx=5)
 
     def kullanici_sil(self, username):
@@ -31,7 +31,7 @@ class UserListFrame(tk.Frame):
             messagebox.showerror("Hatalı Şifre", "❌ Geçersiz şifre. Silme işlemi iptal edildi.")
             return
 
-        if kullanici_sil(username):  # ✅ doğru fonksiyon adı
+        if sil_fonksiyonu(username):
             messagebox.showinfo("Başarılı", f"✅ '{username}' adlı kullanıcı silindi.")
             self.destroy()
             self.__init__(self.master)  # Yeniden yükle

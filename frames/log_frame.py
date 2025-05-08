@@ -1,6 +1,7 @@
 import tkinter as tk
+import os 
 from tkinter import filedialog, messagebox
-from services.log_manager import logu_coz
+from services.log_manager import logu_coz , get_log_directory_from_config
 
 class LogFrame(tk.Frame):
     def __init__(self, parent, kullanici_adi):
@@ -26,23 +27,48 @@ class LogFrame(tk.Frame):
         self.cozulmus_metin = ""
 
     def log_dosyasini_sec(self):
-        dosya_yolu = filedialog.askopenfilename(
-            title="Şifreli Log Dosyasını Seç",
-            filetypes=[("Şifreli Loglar", "*.enc")]
-        )
+        log_root = get_log_directory_from_config()
 
-        if not dosya_yolu:
+        if not log_root or not os.path.isdir(log_root):
+            messagebox.showerror("Hata", "Log klasörü ayarlı değil veya mevcut değil.")
             return
 
-        try:
-            self.cozulmus_metin = logu_coz(dosya_yolu)
-            self.text_area.delete("1.0", tk.END)
-            self.text_area.insert(tk.END, self.cozulmus_metin)
-            self.save_button.config(state="normal")
-        except Exception as e:
-            messagebox.showerror("Hata", f"Log dosyası okunamadı:\n{e}")
-            self.text_area.delete("1.0", tk.END)
-            self.save_button.config(state="disabled")
+        dosyalar = [f for f in os.listdir(log_root) if f.endswith(".log.enc")]
+
+        if not dosyalar:
+            messagebox.showinfo("Bilgi", "Hiçbir şifreli log dosyası bulunamadı.")
+            return
+
+        secim_penceresi = tk.Toplevel(self)
+        secim_penceresi.title("Log Dosyası Seç")
+
+        tk.Label(secim_penceresi, text="Bir log dosyası seçin:").pack(pady=5)
+
+        listbox = tk.Listbox(secim_penceresi, width=60, height=10)
+        for f in dosyalar:
+            listbox.insert(tk.END, f)
+        listbox.pack(padx=10, pady=5)
+
+        def logu_yukle():
+            secilen_index = listbox.curselection()
+            if not secilen_index:
+                return
+
+            dosya_adi = dosyalar[secilen_index[0]]
+            tam_yol = os.path.join(log_root, dosya_adi)
+
+            try:
+                cozulmus = logu_coz(tam_yol)
+                self.text_area.delete("1.0", tk.END)
+                self.text_area.insert(tk.END, cozulmus)
+                self.save_button.config(state="normal")
+                secim_penceresi.destroy()
+            except Exception as e:
+                messagebox.showerror("Hata", f"Log çözülemedi:\n{e}")
+                self.text_area.delete("1.0", tk.END)
+                self.save_button.config(state="disabled")
+
+        tk.Button(secim_penceresi, text="Göster", command=logu_yukle).pack(pady=10)
 
     def txt_kaydet(self):
         dosya_yolu = filedialog.asksaveasfilename(

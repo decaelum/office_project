@@ -27,11 +27,19 @@ def kontrol_ve_kaydet(dosya_yolu=None, progress_callback=None, df=None, islem_ad
         except Exception as e:
             messagebox.showerror("Excel Hatası", str(e))
             return
+        
+    # 🔸 Filtreleme sorusu
+    filtrele = messagebox.askyesno(
+        "Filtreleme Seçeneği",
+        "Yalnızca hatalı (404) ve satışta olan (Max Price ≠ 0) ürünleri kontrol etmek ister misiniz?\n\n"
+        "• 404 = URL geçersiz veya silinmiş ürün\n"
+        "• Max Price ≠ 0 = Satışta olan ürünler"
+    )
 
-    # 🔍 Dönüştürme ve filtreleme
-    df["Max Price"] = pd.to_numeric(df["Max Price"], errors="coerce")
-    df["Update Status"] = pd.to_numeric(df["Update Status"], errors="coerce")
-    df = df[(df["Max Price"] != 0) & (df["Update Status"] == 404)]
+    if filtrele:
+        df["Max Price"] = pd.to_numeric(df["Max Price"], errors="coerce")
+        df["Update Status"] = pd.to_numeric(df["Update Status"], errors="coerce")
+        df = df[(df["Max Price"] != 0) & (df["Update Status"] == 404)]
 
     if df.empty:
         messagebox.showwarning("Uyarı", "İşlenecek satır bulunamadı.")
