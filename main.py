@@ -5,11 +5,10 @@ from frames.app_frame import MainAppFrame
 class Uygulama(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("URL Kontrol Uygulaması")
+        self.title("Ofis Uygulaması")
         self.geometry("800x600")
         self.current_frame = None
 
-        # ✅ Login ekranı başlatılırken gerekli argümanları geçiyoruz
         self.ekrani_degistir(lambda parent: LoginFrame(parent, self.giris_basarili))
 
     def ekrani_degistir(self, frame_sinifi):
@@ -20,9 +19,9 @@ class Uygulama(tk.Tk):
 
     def giris_basarili(self, kullanici_adi):
         print(f"🎉 Giriş başarılı: {kullanici_adi}")
-        self.ekrani_degistir(lambda parent: MainAppFrame(parent, kullanici_adi))
+        self.ekrani_degistir(lambda parent: MainAppFrame(parent, kullanici_adi, self.ekrani_degistir))
+
 
 if __name__ == "__main__":
-    print("📁 Uygulama başlatılıyor...")
     app = Uygulama()
     app.mainloop()
