@@ -25,7 +25,9 @@ def veritabani_olustur():
         print(f"❌ Veritabanı hatası: {e}")
 
 
-def urun_ekle(barcode, name, url, date):
+def urun_ekle(barcode, name, url, date=None):
+    if date is None:
+        date = datetime.now().strftime("%Y-%m-%d")
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
@@ -41,7 +43,6 @@ def urun_ekle(barcode, name, url, date):
     except Exception as e:
         print(f"Hata: {e}")
         return False
-
 
 def tum_urunleri_getir():
     try:
@@ -92,24 +93,62 @@ def urun_guncelle(barcode, product_name=None, url=None, last_control=None):
             degerler.append(barcode)
 
             cursor.execute(sorgu, tuple(degerler))
-            conn.commit()
             return cursor.rowcount > 0
     except sqlite3.Error as e:
         print(f"❌ Ürün güncelleme hatası: {e}")
         return False
 
-def urun_ekle_veya_guncelle(barcode: str, name: str, url: str, kontrol_tarihi: str = None):
-    """
-    Barkoda göre ürün veritabanında varsa günceller, yoksa ekler.
-    """
+
+def urun_ekle_veya_guncelle(barcode, name, url, kontrol_tarihi=None):
+    return urun_ekle(barcode, name, url, kontrol_tarihi)
+
+def urunleri_ara(query, sayfa_no, sayfa_boyutu):
     try:
         with sqlite3.connect(DB_PATH) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM products WHERE barcode = ?", (barcode,))
-            if cursor.fetchone():
-                return urun_guncelle(barcode, name, url, kontrol_tarihi)
+            offset = (sayfa_no - 1) * sayfa_boyutu
+            search_query = f"%{query}%"
+            cursor.execute("""
+                SELECT barcode, product_name, url, last_control 
+                FROM products 
+                WHERE barcode LIKE ? OR product_name LIKE ? OR url LIKE ?
+                LIMIT ? OFFSET ?
+            """, (search_query, search_query, search_query, sayfa_boyutu, offset))
+            return cursor.fetchall()
+    except sqlite3.Error as e:
+        print(f"❌ Arama hatası: {e}")
+        return []
+
+
+def urunleri_getir_sayfali(sayfa_no, sayfa_boyutu, arama_query=None):
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            offset = (sayfa_no - 1) * sayfa_boyutu
+            if arama_query:
+                query = """
+                    SELECT * FROM products 
+                    WHERE barcode LIKE ? 
+                    LIMIT ? OFFSET ?
+                """
+                cursor.execute(query, (f"%{arama_query}%", sayfa_boyutu, offset))
             else:
-                return urun_ekle(barcode, name, url, kontrol_tarihi)
-    except Exception as e:
-        print(f"⚠️ Ekle veya Güncelle hatası: {e}")
-        return False
+                query = "SELECT * FROM products LIMIT ? OFFSET ?"
+                cursor.execute(query, (sayfa_boyutu, offset))
+            return cursor.fetchall()
+    except sqlite3.Error as e:
+        print(f"❌ Ürünleri getirme hatası: {e}")
+        return []
+    
+def urun_sayisini_getir(arama_query=None):
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            if arama_query:
+                cursor.execute("SELECT COUNT(*) FROM products WHERE barcode LIKE ?", (f"%{arama_query}%",))
+            else:
+                cursor.execute("SELECT COUNT(*) FROM products")
+            return cursor.fetchone()[0]
+    except sqlite3.Error as e:
+        print(f"❌ Kayıt sayısı getirme hatası: {e}")
+        return 0
