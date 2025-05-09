@@ -102,3 +102,17 @@ def logu_coz(log_dosya: str) -> str:
         return cozulmus.decode("utf-8")
     except Exception as e:
         return f"❌ Log çözülemedi: {e}"
+    
+def logu_txt_olarak_kaydet(metin: str, dosya_yolu: str):
+    """
+    Çözülmüş log verisini verilen dosya yoluna .txt olarak kaydeder.
+
+    Args:
+        metin (str): Kaydedilecek log içeriği.
+        dosya_yolu (str): Kaydedilecek dosya tam yolu.
+    """
+    try:
+        with open(dosya_yolu, "w", encoding="utf-8") as f:
+            f.write(metin)
+    except Exception as e:
+        print(f"❌ Log TXT olarak kaydedilemedi: {e}")

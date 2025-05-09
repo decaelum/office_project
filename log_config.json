@@ -1,1 +1,6 @@
-{"log_root": "/Users/yagizcigirgan/Desktop/logs"}
+{   "log_root": "/Users/yagizcigirgan/Desktop/logs",
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "office.project.dd@gmail.com",
+    "sender_password": "phhj wdgn aidp ugjf"
+}

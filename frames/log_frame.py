@@ -1,7 +1,7 @@
 import tkinter as tk
 import os 
 from tkinter import filedialog, messagebox
-from services.log_manager import logu_coz , get_log_directory_from_config
+from services.log_manager import logu_coz , get_log_directory_from_config , logu_txt_olarak_kaydet
 
 class LogFrame(tk.Frame):
     def __init__(self, parent, kullanici_adi):
