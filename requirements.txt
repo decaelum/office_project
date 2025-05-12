@@ -3,3 +3,4 @@ openpyxl
 requests
 cryptography
 schedule
+PySide6
