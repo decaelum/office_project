@@ -17,22 +17,9 @@ logging.basicConfig(
     encoding="utf-8"
 )
 
-def log_and_print(message, level="info"):
-    """
-    Logs the message to the log file and prints it to the terminal.
-
-    Args:
-        message (str): The message to log and print.
-        level (str): Log level (info, warning, error, debug).
-    """
-    print(message)
-    if level == "info":
-        logging.info(message)
-    elif level == "warning":
-        logging.warning(message)
-    elif level == "error":
-        logging.error(message)
-    elif level == "debug":
-        logging.debug(message)
-    else:
-        logging.info(message)  # Default olarak info kullan
+def log_and_print(message: str, level="info"):
+    print(message, flush=True)  # Force print to immediately flush to stdout
+    logger = logging.getLogger("app")
+    if not logger.handlers:
+        logging.basicConfig(level=logging.INFO)
+    getattr(logger, level)(message)

@@ -4,4 +4,5 @@ requests
 cryptography
 schedule
 PySide6
-flask
+selenium
+psutil

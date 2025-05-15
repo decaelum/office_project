@@ -6,33 +6,13 @@ from PySide6.QtWidgets import (
     QFileDialog, QTableWidget, QTableWidgetItem, QMessageBox,
     QProgressBar, QInputDialog
 )
-from PySide6.QtCore import QSize, Qt, QThread, Signal
+from PySide6.QtCore import QSize, Qt
 
-from services.database_services import get_all_products ,update_products_from_excel
-from services.excel_services import process_and_save_files, read_excel_file
-from services.mail_service import send_mail_with_attachment,check_for_confirmation
+from services.automation_runner import AutomationThread
+from services.mail_service import send_mail_with_attachment, check_for_confirmation
 from services.logger_service import log_and_print
-from services.automation_services import run_full_automation
-
-
-class AutomationThread(QThread):
-    progress_updated = Signal(int)
-    automation_finished = Signal()
-
-    def run(self):
-        try:
-            log_and_print("🚀 Starting full automation process...")
-            run_full_automation(
-                db_name="data/products.db",
-                operation_name="URL_Check",
-                progress_callback=self.progress_updated.emit
-            )
-            log_and_print("✅ Automation process completed successfully.")
-            self.automation_finished.emit()
-        except Exception as e:
-            log_and_print(f"❌ Automation process failed: {e}", level="error")
-            self.automation_finished.emit()
-
+from services.excel_services import process_and_save_files, read_excel_file
+from services.database_services import get_all_products, update_products_from_excel
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -106,7 +86,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             log_and_print(f"❌ Failed to send email: {e}", level="error")
             QMessageBox.warning(self, "Error", f"Failed to send email: {e}")
-
 
     def ask_for_confirmation(self):
         subject_keyword, ok1 = QInputDialog.getText(self, "Confirmation Subject", "Enter email subject keyword to confirm:")
@@ -220,7 +199,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(table)
         self.product_window.setLayout(layout)
         self.product_window.show()
-    
+
     def sync_excel_to_db(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Excel File for Sync", "", "Excel Files (*.xlsx)")
         if file_path:
@@ -235,7 +214,6 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Error", f"Sync failed: {e}")
         else:
             QMessageBox.information(self, "Cancelled", "No file selected.")
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

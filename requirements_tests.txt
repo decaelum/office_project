@@ -1,8 +1,0 @@
-pandas
-openpyxl
-requests
-cryptography
-schedule
-PySide6
-flask
-matplotlib

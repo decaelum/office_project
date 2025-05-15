@@ -69,22 +69,16 @@ def process_and_save_files(file_paths: List[str], db_name: str = "products.db"):
     log_message(f"Processed and saved data from {len(file_paths)} files successfully.")
 
 
-def save_results_to_excel(results: List[dict], operation_name: str, output_dir: str = "results/"):
-    """
-    Saves the results of URL comparison into an Excel file.
+def save_results_to_excel(data, operation_name):
+    from pandas import DataFrame
+    from datetime import datetime
 
-    Args:
-        results (List[dict]): List of results with keys: 'barcode', 'new_url', 'prefix_changed', 'content_id_changed'.
-        operation_name (str): Name of the operation provided by the user.
-        output_dir (str): Directory to save the result file.
-    """
-    os.makedirs(output_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    file_name = f"{timestamp}-{operation_name}.xlsx"
-    file_path = os.path.join(output_dir, file_name)
+    if not os.path.exists("results"):
+        os.makedirs("results")
 
-    df = pd.DataFrame(results)
-    df.to_excel(file_path, index=False)
+    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    filename = f"results/{timestamp}-{operation_name}.xlsx"
+    df = DataFrame(data)
+    df.to_excel(filename, index=False)
 
-    log_message(f"Results saved to: {file_path}")
-    print(f"✅ Results saved to: {file_path}")
+    return filename  # önemli: geri döndür!
