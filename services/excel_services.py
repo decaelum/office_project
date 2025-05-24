@@ -1,84 +1,97 @@
 import pandas as pd
 import os
-from typing import List
-from core.db_manager import DatabaseManager
-from core.log_manager import log_message
 from datetime import datetime
+from services.database_services import normalize_barcode, clean_string
+from services.logger_service import log_and_print
+from core.db_manager import DatabaseManager
 
-REQUIRED_COLUMNS = ["barcode", "product_name", "url", "last_control"]
+REQUIRED_COLUMNS = ["barcode", "product_name", "url"]
 
 def read_excel_file(file_path: str) -> pd.DataFrame:
-    """
-    Reads an Excel file and filters required columns.
-
-    Args:
-        file_path (str): Path to the Excel file.
-
-    Returns:
-        pd.DataFrame: Filtered DataFrame with required columns.
-    """
+    """Reads and normalizes data from the Excel file."""
     if not os.path.exists(file_path):
-        log_message(f"File not found: {file_path}", level="error")
+        log_and_print(f"❌ File not found: {file_path}", level="error")
         return pd.DataFrame()
 
-    try:
-        df = pd.read_excel(file_path)
-        missing_columns = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+    df = pd.read_excel(file_path, dtype=str)
+    df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
 
-        if missing_columns:
-            log_message(f"Missing columns in {file_path}: {missing_columns}", level="warning")
-            return pd.DataFrame()
-
-        filtered_df = df[REQUIRED_COLUMNS].dropna()
-        return filtered_df
-
-    except Exception as e:
-        log_message(f"Error reading Excel file {file_path}: {e}", level="error")
+    missing_cols = [col for col in REQUIRED_COLUMNS if col not in df.columns]
+    if missing_cols:
+        log_and_print(f"❌ Missing required columns: {missing_cols}", level="error")
         return pd.DataFrame()
 
+    df = df[REQUIRED_COLUMNS].copy()
+    df.dropna(subset=REQUIRED_COLUMNS, inplace=True)
+    df["barcode"] = df["barcode"].apply(normalize_barcode)
+    return df
 
-def process_and_save_files(file_paths: List[str], db_name: str = "products.db"):
-    """
-    Processes multiple Excel files and saves valid data to the database.
+def process_and_save_files(file_paths: list[str], db_name: str = "data/products.db"):
+    """Processes multiple Excel files and logs successful imports."""
+    from services.database_services import insert_or_update_product
 
-    Args:
-        file_paths (List[str]): List of Excel file paths.
-        db_name (str): Name of the database file.
-    """
-    combined_df = pd.DataFrame()
+    for file_path in file_paths:
+        log_and_print(f"📄 Processing file: {file_path}")
+        df = read_excel_file(file_path)
+        if df.empty:
+            continue
 
-    for path in file_paths:
-        df = read_excel_file(path)
-        combined_df = pd.concat([combined_df, df], ignore_index=True)
+        for _, row in df.iterrows():
+            insert_or_update_product(
+                barcode=row["barcode"],
+                product_name=row["product_name"],
+                url=row["url"],
+                db_name=db_name
+            )
+        log_and_print(f"✅ Completed import: {file_path}")
 
-    if combined_df.empty:
-        log_message("No valid data found to save.", level="warning")
-        return
+def update_products_from_excel(excel_file_path: str, db_name: str = "data/products.db") -> str:
+    df = read_excel_file(excel_file_path)
+    if df.empty:
+        return ""
+
+    updated_records = []
+    inserted_records = []
 
     with DatabaseManager(db_name) as db:
-        for _, row in combined_df.iterrows():
-            try:
+        for _, row in df.iterrows():
+            barcode = normalize_barcode(row["barcode"])
+            new_product_name = clean_string(row["product_name"])
+            new_url = clean_string(row["url"])
+
+            current_data = db.fetch_query("SELECT product_name, url FROM products WHERE barcode = ?", (barcode,))
+            if current_data:
+                current_name, current_url = current_data[0]
+                if clean_string(current_name) != new_product_name or clean_string(current_url) != new_url:
+                    db.update_record(
+                        table="products",
+                        update_fields={
+                            "product_name": new_product_name,
+                            "url": new_url,
+                            "last_control": datetime.now().strftime('%Y-%m-%d')
+                        },
+                        condition="barcode = ?",
+                        condition_values=(barcode,)
+                    )
+                    updated_records.append(barcode)
+                    log_and_print(f"✅ Updated Barcode: {barcode}")
+                else:
+                    log_and_print(f"✔️ No change for Barcode: {barcode}")
+            else:
                 db.insert_record(
                     table="products",
-                    columns=REQUIRED_COLUMNS,
-                    values=[row["barcode"], row["product_name"], row["url"], row["last_control"]]
+                    columns=["barcode", "product_name", "url", "last_control"],
+                    values=[barcode, new_product_name, new_url, datetime.now().strftime('%Y-%m-%d')]
                 )
-            except Exception as e:
-                log_message(f"Failed to insert record for barcode {row['barcode']}: {e}", level="error")
+                inserted_records.append(barcode)
+                log_and_print(f"➕ Inserted new Barcode: {barcode}")
 
-    log_message(f"Processed and saved data from {len(file_paths)} files successfully.")
+    if updated_records:
+        report_df = pd.DataFrame({"Updated Barcodes": updated_records})
+        report_path = f"results/update_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        report_df.to_excel(report_path, index=False)
+        log_and_print(f"📄 Report saved: {report_path}")
+        return report_path
 
-
-def save_results_to_excel(data, operation_name):
-    from pandas import DataFrame
-    from datetime import datetime
-
-    if not os.path.exists("results"):
-        os.makedirs("results")
-
-    timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    filename = f"results/{timestamp}-{operation_name}.xlsx"
-    df = DataFrame(data)
-    df.to_excel(filename, index=False)
-
-    return filename  # önemli: geri döndür!
+    log_and_print("📭 No updates needed.")
+    return ""

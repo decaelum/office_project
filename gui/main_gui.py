@@ -4,15 +4,16 @@ import subprocess
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QVBoxLayout, QWidget,
     QFileDialog, QTableWidget, QTableWidgetItem, QMessageBox,
-    QProgressBar, QInputDialog
+    QProgressBar, QInputDialog, QLineEdit
 )
 from PySide6.QtCore import QSize, Qt
 
 from services.automation_runner import AutomationThread
 from services.mail_service import send_mail_with_attachment, check_for_confirmation
 from services.logger_service import log_and_print
-from services.excel_services import process_and_save_files, read_excel_file
-from services.database_services import get_all_products, update_products_from_excel
+from services.excel_services import process_and_save_files, read_excel_file, update_products_from_excel
+from services.database_services import get_all_products
+from services.farmasi_checker import compare_scraped_links_with_db
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -30,6 +31,7 @@ class MainWindow(QMainWindow):
             ("View Logs", self.view_logs),
             ("View Products", self.view_products),
             ("Sync Excel to DB", self.sync_excel_to_db), 
+            ("Check %Farmasi Products", self.check_farmasi_products),
             ("Exit", self.close)
         ]
 
@@ -56,9 +58,17 @@ class MainWindow(QMainWindow):
         self.thread.automation_finished.connect(self.automation_complete)
         self.thread.start()
 
-    def automation_complete(self):
+    def automation_complete(self, result_path, duration):
         self.progress_bar.setValue(100)
-        QMessageBox.information(self, "Automation", "Automation process completed.")
+
+        if result_path:
+            QMessageBox.information(
+                self,
+                "Automation",
+                f"✅ Automation completed.\n\n📄 Report saved to: {result_path}\n🕒 Duration: {duration:.2f} seconds"
+            )
+        else:
+            QMessageBox.warning(self, "Automation", "Automation completed, but no report was saved.")
 
         log_and_print("📧 Asking for receiver email...")
         email, ok = QInputDialog.getText(self, "Receiver Email", "Enter receiver email address:")
@@ -186,17 +196,41 @@ class MainWindow(QMainWindow):
         self.product_window.setWindowTitle("Products in Database")
         self.product_window.setGeometry(100, 100, 800, 600)
 
+        layout = QVBoxLayout()
+
+        # 🔍 Arama kutusu
+        search_input = QLineEdit()
+        search_input.setPlaceholderText("🔍 Search by Barcode, Product Name or URL...")
+        layout.addWidget(search_input)
+
+        # 📋 Tablo
         table = QTableWidget()
         table.setRowCount(len(products))
         table.setColumnCount(4)
         table.setHorizontalHeaderLabels(["Barcode", "Product Name", "URL", "Last Control"])
+        layout.addWidget(table)
 
+        # 📥 Verileri ekle
         for row_idx, row_data in enumerate(products):
             for col_idx, value in enumerate(row_data):
-                table.setItem(row_idx, col_idx, QTableWidgetItem(str(value)))
+                item = QTableWidgetItem(str(value))
+                table.setItem(row_idx, col_idx, item)
 
-        layout = QVBoxLayout()
-        layout.addWidget(table)
+        # 🔁 Arama filtre fonksiyonu
+        def filter_table():
+            query = search_input.text().lower()
+            for row in range(table.rowCount()):
+                match = False
+                for col in range(table.columnCount()):
+                    item = table.item(row, col)
+                    if item and query in item.text().lower():
+                        match = True
+                        break
+                table.setRowHidden(row, not match)
+
+    # ✨ Her yazıldığında filtreleme
+        search_input.textChanged.connect(filter_table)
+
         self.product_window.setLayout(layout)
         self.product_window.show()
 
@@ -215,6 +249,19 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.information(self, "Cancelled", "No file selected.")
 
+    def check_farmasi_products(self):
+        new_path, updated_path = compare_scraped_links_with_db()
+
+        if not new_path and not updated_path:
+            QMessageBox.information(self, "Farmasi Check", "No new or updated products found.")
+            return
+
+        message = "Farmasi product check completed.\n"
+        if new_path:
+            message += f"📄 New Products Report: {new_path}\n"
+        if updated_path:
+            message += f"📄 Updated URLs Report: {updated_path}"
+        QMessageBox.information(self, "Farmasi Check", message)
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()

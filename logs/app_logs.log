@@ -21596,3 +21596,47 @@
 2025-05-12 09:53:36 [INFO]: ✅ Change detected for Barcode: TYB9OGV3KCX2M7ZR09 | New URL: https://www.trendyol.com/farmasi/2-li-mr-wipes-konsantre-cok-amacli-temizleyici-saf-sabun-kokulu-1000-ml-p-809264955
 2025-05-12 09:53:46 [INFO]: ✅ Change detected for Barcode: 86901315692140 | New URL: https://www.trendyol.com/farmasi/age-revesist-serisi-4-lu-set-p-69755252
 2025-05-12 09:53:56 [INFO]: ✅ Change detected for Barcode: paprica-2 | New URL: https://www.trendyol.com/farmasi/2-adet-dr-c-tuna-iki-kat-etkili-biberli-balsam-masaj-jeli-125-m-p-54550463
+2025-05-16 13:33:17 [INFO]: Connected to database: data/test_products.db
+2025-05-16 13:33:17 [INFO]: Query executed successfully: 
+                CREATE TABLE products (
+                    barcode TEXT PRIMARY KEY,
+                    product_name TEXT,
+                    url TEXT,
+                    last_control TEXT
+                )
+            
+2025-05-16 13:33:17 [INFO]: Database connection closed.
+2025-05-16 13:33:17 [ERROR]: ❌ File not found: /mnt/data/test_100_products.xlsx
+2025-05-16 13:34:37 [INFO]: Connected to database: data/test_products.db
+2025-05-16 13:34:37 [INFO]: Query executed successfully: 
+                CREATE TABLE products (
+                    barcode TEXT PRIMARY KEY,
+                    product_name TEXT,
+                    url TEXT,
+                    last_control TEXT
+                )
+            
+2025-05-16 13:34:37 [INFO]: Database connection closed.
+2025-05-16 13:34:37 [ERROR]: ❌ File not found: /mnt/data/test_100_products.xlsx
+2025-05-16 13:35:11 [INFO]: Connected to database: data/test_products.db
+2025-05-16 13:35:11 [INFO]: Query executed successfully: 
+                CREATE TABLE products (
+                    barcode TEXT PRIMARY KEY,
+                    product_name TEXT,
+                    url TEXT,
+                    last_control TEXT
+                )
+            
+2025-05-16 13:35:11 [INFO]: Database connection closed.
+2025-05-16 13:35:11 [ERROR]: ❌ File not found: /mnt/data/test_100_products.xlsx
+2025-05-16 13:36:01 [INFO]: Connected to database: data/test_products.db
+2025-05-16 13:36:01 [INFO]: Query executed successfully: 
+                CREATE TABLE products (
+                    barcode TEXT PRIMARY KEY,
+                    product_name TEXT,
+                    url TEXT,
+                    last_control TEXT
+                )
+            
+2025-05-16 13:36:01 [INFO]: Database connection closed.
+2025-05-16 13:36:01 [ERROR]: ❌ File not found: /mnt/data/test_100_products.xlsx

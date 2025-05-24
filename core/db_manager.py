@@ -51,12 +51,19 @@ class DatabaseManager:
             log_message(f"Error fetching query: {e}", level="error")
             return []
 
-    def insert_record(self, table: str, columns: List[str], values: List[Any]) -> None:
-        """Inserts a new record into the specified table."""
-        placeholders = ", ".join(["?"] * len(values))
-        columns_str = ", ".join(columns)
-        query = f"INSERT INTO {table} ({columns_str}) VALUES ({placeholders})"
-        self.execute_query(query, tuple(values))
+    def insert_record(self, table: str, columns: list[str], values: tuple):
+        try:
+            placeholders = ", ".join("?" for _ in columns)
+            column_names = ", ".join(columns)
+
+            # Tüm değerleri güvenli string'e çevir
+            safe_values = tuple(str(v) if v is not None else "" for v in values)
+
+            query = f"INSERT INTO {table} ({column_names}) VALUES ({placeholders})"
+            self.execute_query(query, safe_values)
+        except Exception as e:
+            print(f"❌ Insert error: {e}")
+            raise
 
     def update_record(self, table: str, update_fields: dict, condition: str, condition_values: Tuple) -> None:
         """Updates records based on a condition."""

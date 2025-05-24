@@ -1,95 +1,83 @@
+import math
 import os
 import time
+import pandas as pd
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-from services.logger_service import log_and_print
-from services.url_checker_with_selenium import fetch_urls_with_driver
-from services.excel_services import save_results_to_excel
-from core.db_manager import DatabaseManager
 from PySide6.QtCore import QThread, Signal
+from services.logger_service import log_and_print
+from services.database_services import (
+    ensure_products_table_exists,
+    get_all_products,
+    update_url_if_changed
+)
+from services.url_checker_with_selenium import fetch_urls_with_driver
+
 
 class AutomationThread(QThread):
     progress_updated = Signal(int)
-    automation_finished = Signal()
-    log_message = Signal(str)
+    automation_finished = Signal(str, float)  # result path, duration
+
+    def __init__(self, db_name="data/products.db", chunk_size=500, max_workers=3):
+        super().__init__()
+        self.db_name = db_name
+        self.chunk_size = chunk_size
+        self.max_workers = max_workers
 
     def run(self):
-        print("🧪 [DEBUG] AutomationThread.run() started", flush=True)
+        log_and_print("🚀 Automation process started with Selenium...")
+        start_time = time.time()
 
+        ensure_products_table_exists(self.db_name)
+        products = get_all_products(self.db_name)
+        total = len(products)
+
+        if total == 0:
+            log_and_print("⚠️ No products found in database.", level="warning")
+            self.automation_finished.emit("", 0)
+            return
+
+        chunks = [products[i:i+self.chunk_size] for i in range(0, total, self.chunk_size)]
+        completed = 0
+        all_results = []  # 🔍 tüm batch sonuçlarını tut
+
+        for chunk_index, chunk in enumerate(chunks):
+            filtered_chunk = [(barcode, url) for (barcode, _, url, _) in chunk]
+            batch_results = fetch_urls_with_driver(filtered_chunk, total_count=total, start_index=completed)
+
+            all_results.extend(batch_results)  # 🔗 tüm sonuçlara ekle
+
+            for (barcode, original_url, resolved_url) in batch_results:
+                if resolved_url and resolved_url != original_url:
+                    update_url_if_changed(barcode, resolved_url, self.db_name)
+                    log_and_print(f"✅ Updated Barcode: {barcode} | New URL: {resolved_url}")
+                else:
+                    log_and_print(f"✔️ No change for Barcode: {barcode}")
+
+                completed += 1
+                self.progress_updated.emit(int((completed / total) * 100))
+
+        log_and_print("🎉 Automation completed successfully.")
+
+        result_path = ""
         try:
-            self.log_message.emit("🚀 Starting full automation process...")
-            run_full_automation(
-                db_name="data/products.db",
-                operation_name="URL_Check",
-                progress_callback=self.progress_updated.emit,
-                log_callback=self.log_message.emit
-            )
-            self.log_message.emit("✅ Automation process completed successfully.")
-            self.automation_finished.emit()
+            timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+            result_path = f"results/automation_result_{timestamp}.xlsx"
+            os.makedirs("results", exist_ok=True)
+
+            result_df = pd.DataFrame([
+                {
+                    "Barcode": barcode,
+                    "Original URL": original_url,
+                    "Resolved URL": resolved_url,
+                    "Changed": resolved_url != original_url
+                }
+                for (barcode, original_url, resolved_url) in all_results
+            ])
+            result_df.to_excel(result_path, index=False)
+            log_and_print(f"📄 Results saved to: {result_path}")
         except Exception as e:
-            self.log_message.emit(f"❌ Automation process failed: {e}")
-            print(f"[ERROR] run() exception: {e}", flush=True)
-            self.automation_finished.emit()
+            log_and_print(f"❌ Failed to save result report: {e}", level="error")
 
-def check_url_change(old_url: str, current_url: str) -> tuple[bool, bool]:
-    if "-p-" in old_url and "-p-" in current_url:
-        old_prefix, old_suffix = old_url.split("-p-", 1)
-        current_prefix, current_suffix = current_url.split("-p-", 1)
-
-        prefix_changed = old_prefix != current_prefix
-        try:
-            old_content_id = old_suffix.split("/")[0]
-            current_content_id = current_suffix.split("/")[0]
-            content_id_changed = old_content_id != current_content_id
-        except IndexError:
-            content_id_changed = False
-
-        return prefix_changed, content_id_changed
-    return False, False
-
-def run_full_automation(db_name: str = "data/products.db", operation_name: str = "URL_Check", progress_callback=None, log_callback=print):
-    log_callback("🚀 Connecting to database...")
-    results = []
-    with DatabaseManager(db_name) as db:
-        products = db.fetch_query("SELECT barcode, url FROM products")
-        total_products = len(products)
-        log_callback(f"📦 Total products to check: {total_products}")
-
-        chunk_size = 500
-        chunks = [products[i:i + chunk_size] for i in range(0, total_products, chunk_size)]
-
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = [executor.submit(fetch_urls_with_driver, chunk) for chunk in chunks]
-
-            completed = 0
-            for future in as_completed(futures):
-                log_and_print("🚀 A batch thread started processing...")
-
-                batch_result = future.result()
-
-                log_and_print("✅ A batch thread finished.")
-                for barcode, old_url, current_url in batch_result:
-                    prefix_changed, content_id_changed = check_url_change(old_url, current_url)
-
-                    if prefix_changed or content_id_changed:
-                        results.append({
-                            "barcode": barcode,
-                            "new_url": current_url,
-                            "prefix_changed": prefix_changed,
-                            "content_id_changed": content_id_changed
-                        })
-                        log_and_print(f"✅ Change detected for Barcode: {barcode} | New URL: {current_url}")
-
-                    completed += 1
-                    if progress_callback:
-                        progress = int((completed / total_products) * 100)
-                        progress_callback(progress)
-                time.sleep(0.1)
-
-    if results:
-        log_and_print("📄 Changes detected. Generating report...")
-        save_results_to_excel(results, operation_name)
-        log_and_print("✅ Report saved successfully.")
-    else:
-        log_and_print("📭 No URL changes detected during automation.")
+        duration = time.time() - start_time
+        log_and_print(f"🕒 Total automation time: {duration:.2f} seconds")
+        self.automation_finished.emit(result_path, duration)
