@@ -4,6 +4,7 @@ from core.db_manager import DatabaseManager
 from datetime import datetime
 from services.logger_service import log_and_print
 import unicodedata
+import sqlite3
 
 def ensure_products_table_exists(db_name="data/products.db"):
     create_table_query = (
@@ -78,3 +79,17 @@ def update_url_if_changed(barcode: str, new_url: str, db_name: str = "data/produ
                 log_and_print(f"🔁 URL updated for barcode {barcode}")
         else:
             log_and_print(f"⚠️ Barcode not found while updating URL: {barcode}", level="warning")
+
+def update_product_name(barcode, new_name, db_name="data/products.db"):
+    try:
+        conn = sqlite3.connect(db_name)
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE products
+            SET product_name = ?
+            WHERE barcode = ?
+        """, (new_name, barcode))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        raise Exception(f"Failed to update product name for {barcode}: {e}")

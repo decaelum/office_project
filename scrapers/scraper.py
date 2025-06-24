@@ -3,6 +3,7 @@ import time
 import math
 import re
 from concurrent.futures import ThreadPoolExecutor
+import pandas as pd
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -11,8 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from services.logger_service import log_and_print
 from services.database_services import get_all_products
-from urllib.parse import urlparse
-
+from urllib.parse import urlparse, urlunparse
 
 def extract_product_id(url):
     try:
@@ -23,6 +23,14 @@ def extract_product_id(url):
         log_and_print(f"❌ Error extracting product id from URL: {url} | {e}", level="error")
         return None
 
+def normalize_url(url):
+    try:
+        parsed = urlparse(url)
+        normalized = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+        return normalized
+    except Exception as e:
+        log_and_print(f"❌ Failed to normalize URL: {url} | {e}", level="error")
+        return url
 
 def get_chrome_driver():
     options = Options()
@@ -35,7 +43,6 @@ def get_chrome_driver():
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Safari/537.36")
     return webdriver.Chrome(options=options)
-
 
 def scrape_page(page):
     base_url = "https://www.trendyol.com/sr?q=%25Farmasi&qt=%25Farmasi&st=%25Farmasi&os=1&pi="
@@ -63,11 +70,13 @@ def scrape_page(page):
                 log_and_print("⚠️ Skipping: href is None", level="warning")
             elif "-p-" not in href:
                 log_and_print(f"⚠️ Skipping: '-p-' not in href → {href}", level="warning")
-            elif href in scraped:
-                log_and_print(f"♻️ Duplicate URL skipped: {href}", level="info")
             else:
-                scraped.add(href)
-                log_and_print(f"✅ Added: {href}")
+                clean_url = normalize_url(href)
+                if clean_url in scraped:
+                    log_and_print(f"♻️ Duplicate URL skipped: {clean_url}", level="info")
+                else:
+                    scraped.add(clean_url)
+                    log_and_print(f"✅ Added: {clean_url}")
 
         log_and_print(f"📄 Page {page}: {len(product_elements)} elements, {len(scraped)} unique URLs.")
     except Exception as e:
@@ -79,7 +88,6 @@ def scrape_page(page):
     finally:
         driver.quit()
     return scraped
-
 
 def scrape_farmasi_product_links(max_workers=3):
     base_url = "https://www.trendyol.com/sr?q=%25Farmasi&qt=%25Farmasi&st=%25Farmasi&os=1&pi=1"
@@ -103,7 +111,6 @@ def scrape_farmasi_product_links(max_workers=3):
     log_and_print(f"🎯 Scraping completed. Final unique URL count: {len(all_scraped)}")
     return list(all_scraped)
 
-
 def compare_scraped_links_with_db(db_name="data/products.db"):
     log_and_print("🔍 Scraping Trendyol for %Farmasi product links...")
     scraped_links = scrape_farmasi_product_links()
@@ -116,7 +123,7 @@ def compare_scraped_links_with_db(db_name="data/products.db"):
     scraped_dict = {extract_product_id(url): url for url in scraped_links if extract_product_id(url)}
     db_products = get_all_products(db_name)
     db_dict = {
-        barcode: {"name": name, "url": url, "product_id": extract_product_id(url)}
+        barcode: {"name": name, "url": normalize_url(url), "product_id": extract_product_id(url)}
         for barcode, name, url, _ in db_products if extract_product_id(url)
     }
 
@@ -124,15 +131,21 @@ def compare_scraped_links_with_db(db_name="data/products.db"):
     updated_urls = []
 
     for product_id, scraped_url in scraped_dict.items():
+        normalized_scraped_url = normalize_url(scraped_url)
         found = False
         for barcode, info in db_dict.items():
             if info["product_id"] == product_id:
                 found = True
-                if info["url"] != scraped_url:
-                    updated_urls.append({"Barcode": barcode, "Product Name": info["name"], "Old URL": info["url"], "New URL": scraped_url})
+                if info["url"] != normalized_scraped_url:
+                    updated_urls.append({
+                        "Barcode": barcode,
+                        "Product Name": info["name"],
+                        "Old URL": info["url"],
+                        "New URL": normalized_scraped_url
+                    })
                 break
         if not found:
-            new_products.append({"Scraped URL": scraped_url})
+            new_products.append({"Scraped URL": normalized_scraped_url})
 
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
     os.makedirs("results", exist_ok=True)

@@ -14,6 +14,7 @@ from services.logger_service import log_and_print
 from services.excel_services import process_and_save_files, read_excel_file, update_products_from_excel
 from services.database_services import get_all_products
 from services.farmasi_checker import compare_scraped_links_with_db
+from services.cleanup import stop_all_threads_and_kill_chromedrivers
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -32,6 +33,7 @@ class MainWindow(QMainWindow):
             ("View Products", self.view_products),
             ("Sync Excel to DB", self.sync_excel_to_db), 
             ("Check %Farmasi Products", self.check_farmasi_products),
+            ("Stop Automation", self.stop_automation),
             ("Exit", self.close)
         ]
 
@@ -53,10 +55,18 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         self.progress_bar.show()
 
-        self.thread = AutomationThread()
-        self.thread.progress_updated.connect(self.progress_bar.setValue)
-        self.thread.automation_finished.connect(self.automation_complete)
-        self.thread.start()
+        start_index, ok1 = QInputDialog.getInt(self, "Start Index", "Enter start index (default 0):", value=0)
+        if not ok1:
+            return
+
+        end_index, ok2 = QInputDialog.getInt(self, "End Index", "Enter end index (leave 0 for all):", value=0)
+        if not ok2:
+            return
+
+        self.automation_thread = AutomationThread(start_index=start_index, end_index=end_index)
+        self.automation_thread.progress_updated.connect(self.progress_bar.setValue)
+        self.automation_thread.automation_finished.connect(self.automation_complete)
+        self.automation_thread.start()
 
     def automation_complete(self, result_path, duration):
         self.progress_bar.setValue(100)
@@ -109,7 +119,7 @@ class MainWindow(QMainWindow):
 
         check_interval, ok3 = QInputDialog.getInt(self, "Check Interval", "Enter check interval (seconds):", value=30, min=5, max=300)
         if not ok3:
-           return
+            return
 
         confirmed = check_for_confirmation(
             subject_keyword=subject_keyword,
@@ -198,25 +208,21 @@ class MainWindow(QMainWindow):
 
         layout = QVBoxLayout()
 
-        # 🔍 Arama kutusu
         search_input = QLineEdit()
         search_input.setPlaceholderText("🔍 Search by Barcode, Product Name or URL...")
         layout.addWidget(search_input)
 
-        # 📋 Tablo
         table = QTableWidget()
         table.setRowCount(len(products))
         table.setColumnCount(4)
         table.setHorizontalHeaderLabels(["Barcode", "Product Name", "URL", "Last Control"])
         layout.addWidget(table)
 
-        # 📥 Verileri ekle
         for row_idx, row_data in enumerate(products):
             for col_idx, value in enumerate(row_data):
                 item = QTableWidgetItem(str(value))
                 table.setItem(row_idx, col_idx, item)
 
-        # 🔁 Arama filtre fonksiyonu
         def filter_table():
             query = search_input.text().lower()
             for row in range(table.rowCount()):
@@ -228,7 +234,6 @@ class MainWindow(QMainWindow):
                         break
                 table.setRowHidden(row, not match)
 
-    # ✨ Her yazıldığında filtreleme
         search_input.textChanged.connect(filter_table)
 
         self.product_window.setLayout(layout)
@@ -262,6 +267,15 @@ class MainWindow(QMainWindow):
         if updated_path:
             message += f"📄 Updated URLs Report: {updated_path}"
         QMessageBox.information(self, "Farmasi Check", message)
+
+    def stop_automation(self):
+        if hasattr(self, 'automation_thread') and self.automation_thread.isRunning():
+            self.automation_thread.stop()
+            stop_all_threads_and_kill_chromedrivers()
+            log_and_print("🚨 Automation stop command issued by user.")
+        else:
+            log_and_print("⚠️ No running automation thread to stop.")
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()

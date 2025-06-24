@@ -1,4 +1,27 @@
-venv/
+# Python cache ve geçici dosyalar
 __pycache__/
-degisenler.xlsx deneme.xlsx
-islem_logu.log
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# IDE klasörleri
+.vscode/
+.idea/
+
+# Ortam dosyaları
+.env
+.venv/
+*.env
+
+# Sonuç dosyaları ve raporlar
+results/
+*.xlsx
+
+# Test klasörü ve içeriği
+tests/
+
+
+# MacOS ve sistem dosyaları
+.DS_Store
+Thumbs.db

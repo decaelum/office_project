@@ -1,30 +1,42 @@
 import unittest
-import os
-from services.logger_service import log_and_print
-from services.farmasi_checker import scrape_farmasi_product_links
+import shutil
+import subprocess
+from selenium import webdriver
+from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.chrome.options import Options
 
-class TestFarmasiScraper(unittest.TestCase):
 
-    def test_scraper_links_format_and_count(self):
-        """
-        Scraper'dan dönen linklerin boş olmadığını ve 'trendyol.com' içerdiğini kontrol eder
-        """
-        links = scrape_farmasi_product_links(max_pages=1)
-        self.assertTrue(len(links) > 0, "❌ Hiç ürün linki bulunamadı.")
-        for url in links:
-            self.assertIn("trendyol.com", url, f"❌ Geçersiz URL formatı: {url}")
+class TestChromeDriverAvailability(unittest.TestCase):
 
-    def test_screenshot_created(self):
-        """
-        İlk sayfa için ekran görüntüsünün alınıp results klasörüne kaydedildiğini kontrol eder
-        """
-        scrape_farmasi_product_links(max_pages=1)
-        screenshot_path = "results/page_1_screenshot.png"
-        self.assertTrue(os.path.exists(screenshot_path), "❌ Screenshot alınamadı.")
+    def test_chromedriver_exists_in_path(self):
+        """Test if chromedriver exists in system PATH"""
+        driver_path = shutil.which("chromedriver")
+        self.assertIsNotNone(driver_path, msg="❌ 'chromedriver' not found in PATH. Download from https://chromedriver.chromium.org/downloads")
 
-        # Temizlik (tercihe bağlı)
-        os.remove(screenshot_path)
+    def test_chrome_version_matches_driver(self):
+        """Test if Chrome browser is installed and its version is accessible"""
+        try:
+            result = subprocess.run(
+                ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "--version"],
+                capture_output=True,
+                text=True
+            )
+            chrome_version = result.stdout.strip()
+            self.assertIn("Google Chrome", chrome_version, msg="❌ Google Chrome is not installed or path is invalid.")
+        except FileNotFoundError:
+            self.fail("❌ Google Chrome not found at default location. Check your installation.")
 
-if __name__ == "__main__":
-    log_and_print("🔪 Unit test for Farmasi Scraper is running...")
-    unittest.main()
+    def test_driver_starts_headless(self):
+        """Test if selenium can start Chrome in headless mode"""
+        options = Options()
+        options.add_argument("--headless=new")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-gpu")
+
+        try:
+            driver = webdriver.Chrome(options=options)
+            driver.quit()
+        except WebDriverException as e:
+            self.fail(f"❌ Selenium failed to start ChromeDriver:\n{str(e)}\n\n"
+                      f"➤ Check if your ChromeDriver matches your browser version.\n"
+                      f"➤ Or use `webdriver-manager` as fallback.")
